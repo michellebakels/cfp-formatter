@@ -353,7 +353,7 @@ export default function Home() {
         {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-cyan-400 mb-2 tracking-wider">
-            CFP FORMATTER
+            FORM FORMATTER
           </h1>
           <div className="text-xs text-green-400 tracking-widest">
             &gt; CSV PROCESSING UTILITY
@@ -477,7 +477,7 @@ export default function Home() {
                   <div className="bg-slate-800 border-4 border-slate-600 p-4">
                     <div className="text-center">
                       <h3 className="text-green-400 font-bold text-xs tracking-widest mb-2">
-                        SYSTEM STATUS
+                        RECORDS STATUS
                       </h3>
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
