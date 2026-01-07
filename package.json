@@ -1,6 +1,7 @@
 {
   "name": "cfp-formatter",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "A drag-and-drop app for reviewing conference PDF applications with customizable field selection",
   "private": true,
   "scripts": {
     "dev": "next dev",
