@@ -160,22 +160,39 @@ export default function Home() {
             background: #0f172a;
             color: #22d3ee;
           }
-          .application { 
+.application { 
+            page-break-before: always;
             page-break-after: always; 
-            margin-bottom: 40px;
+            page-break-inside: avoid;
+            margin-bottom: 0;
             border: 4px solid #475569;
-            padding: 30px;
+            padding: 16px;
             min-height: calc(100vh - 80px);
             background: #1e293b;
           }
           .application:last-child { page-break-after: auto; }
           .field { margin-bottom: 20px; }
-          .field-label { 
+.field-label { 
             font-weight: bold; 
             color: #4ade80;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
+            font-size: 9px;
+            letter-spacing: 0.02em;
+          }
+          .field-value { 
+            color: #22d3ee;
+            line-height: 1.2;
+            font-size: 8px;
+            white-space: pre-wrap;
+          }
+          h1 { 
+            color: #4ade80; 
+            margin-bottom: 16px;
             font-size: 14px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
+            text-align: center;
+            border-bottom: 1px solid #475569;
+            padding-bottom: 8px;
           }
           .field-value { 
             color: #22d3ee;
