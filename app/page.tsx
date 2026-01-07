@@ -226,16 +226,22 @@ export default function Home() {
       );
 
       // Safely get values, checking if index exists in row array
-      const name =
-        nameField !== -1 && nameField < row.length && row[nameField]
-          ? row[nameField]
-          : `Application ${rowIndex}`;
-      const company =
-        companyField !== -1 && companyField < row.length && row[companyField]
-          ? row[companyField]
-          : "";
+      const nameValue = nameField !== -1 && nameField < row.length && row[nameField] 
+        ? row[nameField].trim() 
+        : '';
+      const companyValue = companyField !== -1 && companyField < row.length && row[companyField]
+        ? row[companyField].trim()
+        : '';
 
-      const title = company ? `${name} - ${company}` : name;
+      // Build title based on available information
+      let title = '';
+      if (nameValue && companyValue) {
+        title = `${nameValue} - ${companyValue}`;
+      } else if (nameValue) {
+        title = nameValue;
+      } else {
+        title = `Application ${rowIndex}`;
+      }
 
       html += `<div class="application">`;
       html += `<h1>${escapeHtml(title)}</h1>`;
