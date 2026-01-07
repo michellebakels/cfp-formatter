@@ -342,7 +342,7 @@ export default function Home() {
                 onClick={generatePrintSet}
                 className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
-                Generate Print Set ({csvData.length} applications)
+                Generate Formatted Set ({csvData.length} applications)
               </button>
             )}
           </div>
