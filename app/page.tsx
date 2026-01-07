@@ -9,6 +9,7 @@ export default function Home() {
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [filterNumbers, setFilterNumbers] = useState<string>("");
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
   const currentFileRef = useRef<File | null>(null);
 
   const parseCSVData = (text: string) => {
@@ -87,6 +88,7 @@ export default function Home() {
         setFieldTitles(parsedData.headers);
         setSelectedFields(new Set(parsedData.headers));
         setCsvData(parsedData.dataRows);
+        setIsFileUploaded(true);
       }
     };
     reader.readAsText(file);
@@ -358,45 +360,37 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main Grid Layout */}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - File Upload & Status */}
-
-          <div className="lg:col-span-1">
-            <div className="mb-3 text-center">
-              <h2 className="text-green-400 font-bold text-xs tracking-widest">
-                DROP CSV FILE:
-              </h2>
-            </div>
+        {/* Initial State - Centered Uploader */}
+        {!isFileUploaded && (
+          <div className="flex justify-center">
             <div
-              className={`border-4 bg-slate-800 p-4 text-center transition-all mb-4 ${
+              className={`border-4 bg-slate-800 p-12 text-center transition-all max-w-md w-full ${
                 isDragging
-                  ? "border-cyan-400 shadow-cyan-400/50 shadow-lg"
+                  ? "border-cyan-400 shadow-cyan-400/50 shadow-lg scale-105"
                   : "border-slate-600"
               }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 border-4 border-cyan-400 flex items-center justify-center bg-slate-900">
-                  <div className="text-cyan-400 text-xl font-bold">
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-24 h-24 border-4 border-cyan-400 flex items-center justify-center bg-slate-900">
+                  <div className="text-cyan-400 text-4xl font-bold">
                     {file ? "✓" : "⬇"}
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-green-400 font-bold text-xs tracking-wider mb-1">
+                  <p className="text-green-400 font-bold text-sm tracking-wider mb-2">
                     {file
                       ? `FILE: ${
-                          file.name.length > 15
-                            ? file.name.substring(0, 15) + "..."
+                          file.name.length > 30
+                            ? file.name.substring(0, 30) + "..."
                             : file.name
                         }`
                       : "DROP CSV FILE"}
                   </p>
-                  <p className="text-cyan-400 text-xs tracking-widest">
+                  <p className="text-cyan-400 text-sm tracking-widest">
                     OR PRESS A TO BROWSE
                   </p>
                 </div>
@@ -410,142 +404,207 @@ export default function Home() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="px-3 py-2 bg-green-400 text-slate-900 font-bold text-xs border-2 border-green-400 cursor-pointer hover:bg-green-300 transition-colors tracking-wider"
+                  className="px-6 py-3 bg-green-400 text-slate-900 font-bold text-sm border-2 border-green-400 cursor-pointer hover:bg-green-300 transition-colors tracking-wider"
                 >
                   [ BROWSE ]
                 </label>
               </div>
             </div>
-
-            {/* System Status */}
-            {file && fieldTitles.length > 0 && (
-              <div className="bg-slate-800 border-4 border-slate-600 p-4">
-                <div className="text-center">
-                  <h3 className="text-green-400 font-bold text-xs tracking-widest mb-2">
-                    RECORDS STATUS
-                  </h3>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-cyan-400">TOTAL:</span>
-                      <span className="text-green-400">{csvData.length}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-cyan-400">FILTERED:</span>
-                      <span className="text-green-400">
-                        {getFilteredCount()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
+        )}
 
-          {/* Middle Column - Field Selection */}
-          <div className="lg:col-span-1">
-            {file && fieldTitles.length > 0 && (
-              <div className="flex flex-col h-full">
+        {/* File Uploaded State - Grid Layout */}
+        {isFileUploaded && (
+          <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - File Upload & Status */}
+              <div className="lg:col-span-1">
                 <div className="mb-3 text-center">
                   <h2 className="text-green-400 font-bold text-xs tracking-widest">
-                    SELECT FIELDS:
+                    DROP CSV FILE:
                   </h2>
                 </div>
                 <div
-                  className="bg-slate-800 border-4 border-slate-600 p-4 flex-1 overflow-hidden flex flex-col"
-                  style={{ maxHeight: "400px" }}
+                  className={`border-4 bg-slate-800 p-4 text-center transition-all mb-4 ${
+                    isDragging
+                      ? "border-cyan-400 shadow-cyan-400/50 shadow-lg"
+                      : "border-slate-600"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                 >
-                  <div className="overflow-y-auto flex-1 space-y-1">
-                    {fieldTitles.map((field) => (
-                      <label
-                        key={field}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 p-2 border-2 border-transparent hover:border-cyan-400 transition-all text-xs"
-                      >
-                        <div className="relative flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={selectedFields.has(field)}
-                            onChange={() => toggleField(field)}
-                            className="w-4 h-4 opacity-0 absolute"
-                          />
-                          <div
-                            className={`w-4 h-4 border-2 flex items-center justify-center transition-all ${
-                              selectedFields.has(field)
-                                ? "bg-green-400 border-green-400"
-                                : "bg-slate-700 border-slate-500"
-                            }`}
-                          >
-                            {selectedFields.has(field) && (
-                              <span className="text-slate-900 text-xs font-bold">
-                                ✓
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-cyan-400 tracking-wide truncate">
-                          {field}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="mt-2 pt-2 border-t-2 border-slate-600 text-center">
-                    <div className="text-green-400 text-xs tracking-widest">
-                      [{selectedFields.size}/{fieldTitles.length}] SELECTED
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-cyan-400 flex items-center justify-center bg-slate-900">
+                      <div className="text-cyan-400 text-xl font-bold">
+                        {file ? "✓" : "⬇"}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Right Column - Filter & Generate */}
-          <div className="lg:col-span-1">
-            {file && fieldTitles.length > 0 && (
-              <div className="flex flex-col h-full">
-                <h3 className="text-green-400 font-bold text-xs tracking-widest mb-3 text-center">
-                  FILTER & GENERATE:
-                </h3>
+                    <div>
+                      <p className="text-green-400 font-bold text-xs tracking-wider mb-1">
+                        {file
+                          ? `FILE: ${
+                              file.name.length > 15
+                                ? file.name.substring(0, 15) + "..."
+                                : file.name
+                            }`
+                          : "DROP CSV FILE"}
+                      </p>
+                      <p className="text-cyan-400 text-xs tracking-widest">
+                        OR PRESS A TO BROWSE
+                      </p>
+                    </div>
 
-                {/* Filter */}
-                <div
-                  className="bg-slate-800 border-4 border-slate-600 p-4 flex-1"
-                  style={{ maxHeight: "300px" }}
-                >
-                  <div className="flex flex-col h-full">
-                    <h4 className="text-green-400 font-bold text-xs tracking-widest mb-2">
-                      FILTER RECORDS:
-                    </h4>
-                    <textarea
-                      value={filterNumbers}
-                      onChange={(e) => setFilterNumbers(e.target.value)}
-                      placeholder="ENTER NUMBERS&#10;2,3,4,5,6"
-                      className="w-full h-32 px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide resize-none"
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="file-upload"
                     />
-                    <div className="mt-2 text-center">
-                      <div className="text-xs text-cyan-400 tracking-widest opacity-75">
-                        LEAVE EMPTY FOR ALL
-                      </div>
-                    </div>
+                    <label
+                      htmlFor="file-upload"
+                      className="px-3 py-2 bg-green-400 text-slate-900 font-bold text-xs border-2 border-green-400 cursor-pointer hover:bg-green-300 transition-colors tracking-wider"
+                    >
+                      [ BROWSE ]
+                    </label>
                   </div>
                 </div>
 
-                {/* Generate Button */}
-                {selectedFields.size > 0 && csvData.length > 0 && (
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={generatePrintSet}
-                      className="w-full px-4 py-3 bg-green-400 text-slate-900 font-bold text-xs border-4 border-green-400 hover:bg-green-300 transition-all tracking-widest"
-                    >
-                      [ GENERATE PRINT SET ]
-                      <div className="text-xs mt-1 opacity-75">
-                        ({getFilteredCount()} RECORDS)
+                {/* System Status */}
+                {file && fieldTitles.length > 0 && (
+                  <div className="bg-slate-800 border-4 border-slate-600 p-4">
+                    <div className="text-center">
+                      <h3 className="text-green-400 font-bold text-xs tracking-widest mb-2">
+                        SYSTEM STATUS
+                      </h3>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-cyan-400">TOTAL:</span>
+                          <span className="text-green-400">
+                            {csvData.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-cyan-400">FILTERED:</span>
+                          <span className="text-green-400">
+                            {getFilteredCount()}
+                          </span>
+                        </div>
                       </div>
-                    </button>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+
+              {/* Middle Column - Field Selection */}
+              <div className="lg:col-span-1">
+                {file && fieldTitles.length > 0 && (
+                  <div className="flex flex-col h-full">
+                    <div className="mb-3 text-center">
+                      <h2 className="text-green-400 font-bold text-xs tracking-widest">
+                        SELECT FIELDS:
+                      </h2>
+                    </div>
+                    <div
+                      className="bg-slate-800 border-4 border-slate-600 p-4 flex-1 overflow-hidden flex flex-col"
+                      style={{ maxHeight: "400px" }}
+                    >
+                      <div className="overflow-y-auto flex-1 space-y-1">
+                        {fieldTitles.map((field) => (
+                          <label
+                            key={field}
+                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 p-2 border-2 border-transparent hover:border-cyan-400 transition-all text-xs"
+                          >
+                            <div className="relative flex-shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={selectedFields.has(field)}
+                                onChange={() => toggleField(field)}
+                                className="w-4 h-4 opacity-0 absolute"
+                              />
+                              <div
+                                className={`w-4 h-4 border-2 flex items-center justify-center transition-all ${
+                                  selectedFields.has(field)
+                                    ? "bg-green-400 border-green-400"
+                                    : "bg-slate-700 border-slate-500"
+                                }`}
+                              >
+                                {selectedFields.has(field) && (
+                                  <span className="text-slate-900 text-xs font-bold">
+                                    ✓
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-cyan-400 tracking-wide truncate">
+                              {field}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t-2 border-slate-600 text-center">
+                        <div className="text-green-400 text-xs tracking-widest">
+                          [{selectedFields.size}/{fieldTitles.length}] SELECTED
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column - Filter & Generate */}
+              <div className="lg:col-span-1">
+                {file && fieldTitles.length > 0 && (
+                  <div className="flex flex-col h-full">
+                    <h3 className="text-green-400 font-bold text-xs tracking-widest mb-3 text-center">
+                      FILTER & GENERATE:
+                    </h3>
+
+                    {/* Filter */}
+                    <div
+                      className="bg-slate-800 border-4 border-slate-600 p-4 flex-1"
+                      style={{ maxHeight: "300px" }}
+                    >
+                      <div className="flex flex-col h-full">
+                        <h4 className="text-green-400 font-bold text-xs tracking-widest mb-2">
+                          FILTER APPS:
+                        </h4>
+                        <textarea
+                          value={filterNumbers}
+                          onChange={(e) => setFilterNumbers(e.target.value)}
+                          placeholder="ENTER NUMBERS&#10;2,3,4,5,6"
+                          className="w-full h-48 px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide resize-none"
+                        />
+                        <div className="mt-2 text-center">
+                          <div className="text-xs text-cyan-400 tracking-widest opacity-75">
+                            LEAVE EMPTY FOR ALL
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Generate Button */}
+                    {selectedFields.size > 0 && csvData.length > 0 && (
+                      <div className="mt-4 text-center">
+                        <button
+                          onClick={generatePrintSet}
+                          className="w-full px-4 py-3 bg-green-400 text-slate-900 font-bold text-xs border-4 border-green-400 hover:bg-green-300 transition-all tracking-widest"
+                        >
+                          [ GENERATE PRINT SET ]
+                          <div className="text-xs mt-1 opacity-75">
+                            ({getFilteredCount()} APPS)
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
