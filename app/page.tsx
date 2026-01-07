@@ -8,24 +8,8 @@ export default function Home() {
   const [fieldTitles, setFieldTitles] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [csvData, setCsvData] = useState<string[][]>([]);
+  const [filterNumbers, setFilterNumbers] = useState<string>("");
   const currentFileRef = useRef<File | null>(null);
-
-  const parseCSV = useCallback((file: File) => {
-    // Track the current file being processed
-    currentFileRef.current = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // Only update state if this file is still the current file
-      if (currentFileRef.current === file) {
-        const text = e.target?.result as string;
-        const parsedData = parseCSVData(text);
-        setFieldTitles(parsedData.headers);
-        setSelectedFields(new Set(parsedData.headers));
-        setCsvData(parsedData.dataRows);
-      }
-    };
-    reader.readAsText(file);
-  }, []);
 
   const parseCSVData = (text: string) => {
     const rows: string[][] = [];
@@ -91,16 +75,71 @@ export default function Home() {
     return { headers, dataRows };
   };
 
+  const parseCSV = useCallback((file: File) => {
+    // Track the current file being processed
+    currentFileRef.current = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // Only update state if this file is still the current file
+      if (currentFileRef.current === file) {
+        const text = e.target?.result as string;
+        const parsedData = parseCSVData(text);
+        setFieldTitles(parsedData.headers);
+        setSelectedFields(new Set(parsedData.headers));
+        setCsvData(parsedData.dataRows);
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
   const escapeHtml = (text: string): string => {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
   };
 
+  const getFilteredCount = (): number => {
+    if (!filterNumbers.trim()) {
+      return csvData.length;
+    }
+
+    const filterSet = new Set<number>();
+    const numbers = filterNumbers
+      .split(/[,\n\r]+/)
+      .map((n) => parseInt(n.trim()))
+      .filter((n) => !isNaN(n) && n > 0 && n <= csvData.length);
+
+    numbers.forEach((n) => filterSet.add(n));
+    return filterSet.size;
+  };
+
   const generatePrintSet = () => {
     const selectedFieldIndices = fieldTitles
       .map((title, index) => (selectedFields.has(title) ? index : -1))
       .filter((index) => index !== -1);
+
+    // Parse filter numbers with consistent validation
+    const filterSet = new Set<number>();
+    if (filterNumbers.trim()) {
+      const numbers = filterNumbers
+        .split(/[,\n\r]+/)
+        .map((n) => parseInt(n.trim()))
+        .filter((n) => !isNaN(n) && n > 0 && n <= csvData.length);
+      numbers.forEach((n) => filterSet.add(n));
+    }
+
+    // Filter data based on numbers, preserving original indices
+    // Create array of [originalIndex, row] tuples to track original positions
+    let filteredDataWithIndices: Array<[number, string[]]> = [];
+    if (filterSet.size > 0) {
+      filteredDataWithIndices = csvData
+        .map((row, index) => [index + 1, row] as [number, string[]])
+        .filter(([originalIndex]) => filterSet.has(originalIndex));
+    } else {
+      filteredDataWithIndices = csvData.map(
+        (row, index) => [index + 1, row] as [number, string[]]
+      );
+    }
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -143,7 +182,7 @@ export default function Home() {
       <body>
     `;
 
-    csvData.forEach((row, rowIndex) => {
+    filteredDataWithIndices.forEach(([rowIndex, row]) => {
       // Find name and company fields (case-insensitive)
       const nameField = fieldTitles.findIndex(
         (title) =>
@@ -160,7 +199,7 @@ export default function Home() {
       const name =
         nameField !== -1 && nameField < row.length && row[nameField]
           ? row[nameField]
-          : `Application ${rowIndex + 1}`;
+          : `Application ${rowIndex}`;
       const company =
         companyField !== -1 && companyField < row.length && row[companyField]
           ? row[companyField]
@@ -337,12 +376,34 @@ export default function Home() {
               {selectedFields.size} of {fieldTitles.length} fields selected
             </div>
 
+            <div className="mt-4 p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                <div>Total applications: {csvData.length}</div>
+                <div>Filtered applications: {getFilteredCount()}</div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3 text-black dark:text-zinc-100">
+                Filter applications (optional):
+              </h3>
+              <textarea
+                value={filterNumbers}
+                onChange={(e) => setFilterNumbers(e.target.value)}
+                placeholder="Enter application numbers (one per line or comma-separated)&#10;Example: 2,3,4,5,6 or&#10;2&#10;3&#10;4&#10;5&#10;6"
+                className="w-full h-32 px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                Leave empty to include all applications
+              </div>
+            </div>
+
             {selectedFields.size > 0 && csvData.length > 0 && (
               <button
                 onClick={generatePrintSet}
                 className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
-                Generate Formatted Set ({csvData.length} applications)
+                Generate Formatted Set ({getFilteredCount()} applications)
               </button>
             )}
           </div>
