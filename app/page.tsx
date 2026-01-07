@@ -7,6 +7,7 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [fieldTitles, setFieldTitles] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [csvData, setCsvData] = useState<string[][]>([]);
   const currentFileRef = useRef<File | null>(null);
 
   const parseCSV = useCallback((file: File) => {
@@ -17,18 +18,184 @@ export default function Home() {
       // Only update state if this file is still the current file
       if (currentFileRef.current === file) {
         const text = e.target?.result as string;
-        const lines = text.split("\n").filter((line) => line.trim());
-        if (lines.length > 0) {
-          const headers = lines[0]
-            .split(",")
-            .map((header) => header.trim().replace(/"/g, ""));
-          setFieldTitles(headers);
-          setSelectedFields(new Set(headers));
-        }
+        const parsedData = parseCSVData(text);
+        setFieldTitles(parsedData.headers);
+        setSelectedFields(new Set(parsedData.headers));
+        setCsvData(parsedData.dataRows);
       }
     };
     reader.readAsText(file);
   }, []);
+
+  const parseCSVData = (text: string) => {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = "";
+    let inQuotes = false;
+    let i = 0;
+
+    while (i < text.length) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          currentField += '"';
+          i += 2;
+        } else {
+          // Toggle quotes
+          inQuotes = !inQuotes;
+          i++;
+        }
+      } else if (char === "," && !inQuotes) {
+        // End of field
+        currentRow.push(currentField.trim());
+        currentField = "";
+        i++;
+      } else if ((char === "\n" || char === "\r") && !inQuotes) {
+        // End of row
+        currentRow.push(currentField.trim());
+        if (currentRow.some((field) => field !== "")) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = "";
+        // Skip \r\n
+        if (char === "\r" && nextChar === "\n") {
+          i += 2;
+        } else {
+          i++;
+        }
+      } else {
+        currentField += char;
+        i++;
+      }
+    }
+
+    // Add the last field and row if there's remaining content
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some((field) => field !== "")) {
+        rows.push(currentRow);
+      }
+    }
+
+    const headers = rows[0] || [];
+    const dataRows = rows
+      .slice(1)
+      .filter(
+        (row) => row.length > 0 && row.some((cell) => cell.trim() !== "")
+      );
+
+    return { headers, dataRows };
+  };
+
+  const escapeHtml = (text: string): string => {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
+  const generatePrintSet = () => {
+    const selectedFieldIndices = fieldTitles
+      .map((title, index) => (selectedFields.has(title) ? index : -1))
+      .filter((index) => index !== -1);
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Print Set</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .application { 
+            page-break-after: always; 
+            margin-bottom: 40px;
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-height: calc(100vh - 80px);
+          }
+          .application:last-child { page-break-after: auto; }
+          .field { margin-bottom: 15px; }
+          .field-label { 
+            font-weight: bold; 
+            color: #333;
+            margin-bottom: 5px;
+          }
+          .field-value { 
+            color: #666;
+            line-height: 1.4;
+          }
+          h1 { color: #333; margin-bottom: 20px; }
+          @media print {
+            body { margin: 0; }
+            .application { 
+              border: none;
+              padding: 15px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+    `;
+
+    csvData.forEach((row, rowIndex) => {
+      // Find name and company fields (case-insensitive)
+      const nameField = fieldTitles.findIndex(
+        (title) =>
+          title.toLowerCase().includes("name") ||
+          title.toLowerCase().includes("applicant")
+      );
+      const companyField = fieldTitles.findIndex(
+        (title) =>
+          title.toLowerCase().includes("company") ||
+          title.toLowerCase().includes("organization")
+      );
+
+      // Safely get values, checking if index exists in row array
+      const name =
+        nameField !== -1 && nameField < row.length && row[nameField]
+          ? row[nameField]
+          : `Application ${rowIndex + 1}`;
+      const company =
+        companyField !== -1 && companyField < row.length && row[companyField]
+          ? row[companyField]
+          : "";
+
+      const title = company ? `${name} - ${company}` : name;
+
+      html += `<div class="application">`;
+      html += `<h1>${escapeHtml(title)}</h1>`;
+
+      selectedFieldIndices.forEach((fieldIndex) => {
+        const fieldName = fieldTitles[fieldIndex];
+        const fieldValue =
+          fieldIndex < row.length && row[fieldIndex] ? row[fieldIndex] : "";
+        html += `
+          <div class="field">
+            <div class="field-label">${escapeHtml(fieldName)}:</div>
+            <div class="field-value">${escapeHtml(fieldValue)}</div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+    });
+
+    html += `
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -169,6 +336,15 @@ export default function Home() {
             <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
               {selectedFields.size} of {fieldTitles.length} fields selected
             </div>
+
+            {selectedFields.size > 0 && csvData.length > 0 && (
+              <button
+                onClick={generatePrintSet}
+                className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                Generate Print Set ({csvData.length} applications)
+              </button>
+            )}
           </div>
         )}
       </div>
