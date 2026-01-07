@@ -1,65 +1,177 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback, useRef } from "react";
 
 export default function Home() {
+  const [isDragging, setIsDragging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [fieldTitles, setFieldTitles] = useState<string[]>([]);
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const currentFileRef = useRef<File | null>(null);
+
+  const parseCSV = useCallback((file: File) => {
+    // Track the current file being processed
+    currentFileRef.current = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // Only update state if this file is still the current file
+      if (currentFileRef.current === file) {
+        const text = e.target?.result as string;
+        const lines = text.split("\n").filter((line) => line.trim());
+        if (lines.length > 0) {
+          const headers = lines[0]
+            .split(",")
+            .map((header) => header.trim().replace(/"/g, ""));
+          setFieldTitles(headers);
+          setSelectedFields(new Set(headers));
+        }
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Set isDragging to false if:
+    // 1. relatedTarget is null (dragged outside browser window)
+    // 2. relatedTarget exists but is not within the drop zone container
+    if (
+      !e.relatedTarget ||
+      (e.relatedTarget instanceof Node &&
+        !e.currentTarget.contains(e.relatedTarget))
+    ) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const droppedFile = e.dataTransfer.files[0];
+      if (droppedFile && droppedFile.type === "text/csv") {
+        setFile(droppedFile);
+        parseCSV(droppedFile);
+      }
+    },
+    [parseCSV]
+  );
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = e.target.files?.[0];
+      if (selectedFile && selectedFile.type === "text/csv") {
+        setFile(selectedFile);
+        parseCSV(selectedFile);
+      }
+    },
+    [parseCSV]
+  );
+
+  const toggleField = useCallback((field: string) => {
+    setSelectedFields((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(field)) {
+        newSet.delete(field);
+      } else {
+        newSet.add(field);
+      }
+      return newSet;
+    });
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black p-8">
+      <div className="w-full max-w-2xl">
+        <div
+          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+            isDragging
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black"
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-zinc-500 dark:text-zinc-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+            </div>
+
+            <div>
+              <p className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+                {file ? file.name : "Drop your CSV file here"}
+              </p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                or click to browse
+              </p>
+            </div>
+
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <label
+              htmlFor="file-upload"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+            >
+              Choose File
+            </label>
+          </div>
         </div>
-      </main>
+
+        {file && fieldTitles.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4 text-black dark:text-zinc-100">
+              Select fields to include:
+            </h2>
+            <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 max-h-96 overflow-y-auto">
+              <div className="space-y-3">
+                {fieldTitles.map((field) => (
+                  <label
+                    key={field}
+                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 p-2 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFields.has(field)}
+                      onChange={() => toggleField(field)}
+                      className="w-4 h-4 text-blue-600 bg-zinc-100 border-zinc-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-zinc-800 focus:ring-2 dark:bg-zinc-700 dark:border-zinc-600"
+                    />
+                    <span className="text-zinc-900 dark:text-zinc-100">
+                      {field}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+              {selectedFields.size} of {fieldTitles.length} fields selected
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
