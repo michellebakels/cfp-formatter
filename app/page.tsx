@@ -243,15 +243,17 @@ export default function Home() {
       );
 
       // Safely get values, checking if index exists in row array
-      const nameValue = nameField !== -1 && nameField < row.length && row[nameField] 
-        ? row[nameField].trim() 
-        : '';
-      const companyValue = companyField !== -1 && companyField < row.length && row[companyField]
-        ? row[companyField].trim()
-        : '';
+      const nameValue =
+        nameField !== -1 && nameField < row.length && row[nameField]
+          ? row[nameField].trim()
+          : "";
+      const companyValue =
+        companyField !== -1 && companyField < row.length && row[companyField]
+          ? row[companyField].trim()
+          : "";
 
       // Build title based on available information
-      let title = '';
+      let title = "";
       if (nameValue && companyValue) {
         title = `${nameValue} - ${companyValue}`;
       } else if (nameValue) {
@@ -345,30 +347,81 @@ export default function Home() {
     });
   }, []);
 
+  const selectAllFields = useCallback(() => {
+    if (fieldTitles.length > 0) {
+      setSelectedFields(new Set(fieldTitles));
+    }
+  }, [fieldTitles]);
+
+  const deselectAllFields = useCallback(() => {
+    setSelectedFields(new Set());
+  }, []);
+
+  const clearFilter = useCallback(() => {
+    setFilterNumbers("");
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement?.tagName === "INPUT" ||
+        activeElement?.tagName === "TEXTAREA";
+
       // Press 'a' or 'A' to trigger file upload (case-insensitive)
       if (
         e.key.toLowerCase() === "a" &&
         !e.ctrlKey &&
         !e.metaKey &&
-        !e.altKey
+        !e.altKey &&
+        !isInputFocused
       ) {
-        // Make sure we're not typing in an input
-        const activeElement = document.activeElement;
-        if (
-          activeElement?.tagName !== "INPUT" &&
-          activeElement?.tagName !== "TEXTAREA"
-        ) {
-          e.preventDefault();
-          document.getElementById("file-upload")?.click();
-        }
+        e.preventDefault();
+        document.getElementById("file-upload")?.click();
+        return;
+      }
+
+      // Ctrl/Cmd + A: Select all fields
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "a" &&
+        fieldTitles.length > 0 &&
+        !isInputFocused
+      ) {
+        e.preventDefault();
+        selectAllFields();
+        return;
+      }
+
+      // Ctrl/Cmd + D: Deselect all fields
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "d" &&
+        !isInputFocused
+      ) {
+        e.preventDefault();
+        deselectAllFields();
+        return;
+      }
+
+      // Escape: Clear filter
+      if (e.key === "Escape" && !isInputFocused) {
+        e.preventDefault();
+        clearFilter();
+        return;
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [
+    fieldTitles,
+    selectedFields,
+    csvData,
+    selectAllFields,
+    deselectAllFields,
+    clearFilter,
+  ]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-900 font-mono p-4">
@@ -413,9 +466,14 @@ export default function Home() {
                         }`
                       : "DROP CSV FILE"}
                   </p>
-                  <p className="text-cyan-400 text-sm tracking-widest">
-                    OR PRESS A TO BROWSE
-                  </p>
+                </div>
+
+                <div className="flex justify-center">
+                  <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                    <span className="text-purple-300">⌨️</span>{" "}
+                    <span className="font-bold">A</span> <br />
+                    <span className="text-cyan-400">Browse</span>
+                  </div>
                 </div>
 
                 <input
@@ -474,9 +532,14 @@ export default function Home() {
                             }`
                           : "DROP CSV FILE"}
                       </p>
-                      <p className="text-cyan-400 text-xs tracking-widest">
-                        OR PRESS A TO BROWSE
-                      </p>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                        <span className="text-purple-300">⌨️</span>{" "}
+                        <span className="font-bold">A</span> <br />
+                        <span className="text-cyan-400">Browse</span>
+                      </div>
                     </div>
 
                     <input
@@ -567,9 +630,21 @@ export default function Home() {
                           </label>
                         ))}
                       </div>
-                      <div className="mt-2 pt-2 border-t-2 border-slate-600 text-center">
+                      <div className="mt-2 pt-2 border-t-2 border-slate-600 text-center space-y-2">
                         <div className="text-green-400 text-xs tracking-widest">
                           [{selectedFields.size}/{fieldTitles.length}] SELECTED
+                        </div>
+                        <div className="flex items-center justify-center gap-8">
+                          <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                            <span className="text-purple-300">⌨️</span>{" "}
+                            <span className="font-bold">Ctrl/Cmd+A</span> <br />
+                            <span className="text-cyan-400">Select All</span>
+                          </div>
+                          <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                            <span className="text-purple-300">⌨️</span>{" "}
+                            <span className="font-bold">Ctrl/Cmd+D</span> <br />
+                            <span className="text-cyan-400">Deselect All</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -600,9 +675,14 @@ export default function Home() {
                           placeholder="ENTER NUMBERS&#10;2,3,4,5,6"
                           className="w-full h-48 px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide resize-none"
                         />
-                        <div className="mt-2 text-center">
+                        <div className="mt-2 text-center space-y-2">
                           <div className="text-xs text-cyan-400 tracking-widest opacity-75">
                             LEAVE EMPTY FOR ALL
+                          </div>
+                          <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                            <span className="text-purple-300">⌨️</span>{" "}
+                            <span className="font-bold">Esc</span> <br />
+                            <span className="text-cyan-400">Clear Filter</span>
                           </div>
                         </div>
                       </div>
