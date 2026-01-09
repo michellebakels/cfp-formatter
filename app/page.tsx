@@ -8,6 +8,13 @@ export default function Home() {
   const [fieldTitles, setFieldTitles] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [csvData, setCsvData] = useState<string[][]>([]);
+  const [fieldOrder, setFieldOrder] = useState<number[]>([]);
+  const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(
+    null
+  );
+  const [dragOverFieldIndex, setDragOverFieldIndex] = useState<number | null>(
+    null
+  );
   const [filterNumbers, setFilterNumbers] = useState<string>("");
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const currentFileRef = useRef<File | null>(null);
@@ -88,6 +95,7 @@ export default function Home() {
         setFieldTitles(parsedData.headers);
         setSelectedFields(new Set(parsedData.headers));
         setCsvData(parsedData.dataRows);
+        setFieldOrder(parsedData.headers.map((_, index) => index));
         setIsFileUploaded(true);
       }
     };
@@ -116,9 +124,9 @@ export default function Home() {
   };
 
   const generatePrintSet = () => {
-    const selectedFieldIndices = fieldTitles
-      .map((title, index) => (selectedFields.has(title) ? index : -1))
-      .filter((index) => index !== -1);
+    const selectedFieldIndices = fieldOrder.filter((index) =>
+      selectedFields.has(fieldTitles[index])
+    );
 
     // Parse filter numbers with consistent validation
     const filterSet = new Set<number>();
@@ -231,25 +239,37 @@ export default function Home() {
 
     filteredDataWithIndices.forEach(([rowIndex, row]) => {
       // Find name and company fields (case-insensitive)
-      const nameField = fieldTitles.findIndex(
-        (title) =>
+      const nameField = fieldOrder.findIndex((index) => {
+        const title = fieldTitles[index];
+        return (
           title.toLowerCase().includes("name") ||
           title.toLowerCase().includes("applicant")
-      );
-      const companyField = fieldTitles.findIndex(
-        (title) =>
+        );
+      });
+      const companyField = fieldOrder.findIndex((index) => {
+        const title = fieldTitles[index];
+        return (
           title.toLowerCase().includes("company") ||
           title.toLowerCase().includes("organization")
-      );
+        );
+      });
 
       // Safely get values, checking if index exists in row array
+      const actualNameField = nameField !== -1 ? fieldOrder[nameField] : -1;
+      const actualCompanyField =
+        companyField !== -1 ? fieldOrder[companyField] : -1;
+
       const nameValue =
-        nameField !== -1 && nameField < row.length && row[nameField]
-          ? row[nameField].trim()
+        actualNameField !== -1 &&
+        actualNameField < row.length &&
+        row[actualNameField]
+          ? row[actualNameField].trim()
           : "";
       const companyValue =
-        companyField !== -1 && companyField < row.length && row[companyField]
-          ? row[companyField].trim()
+        actualCompanyField !== -1 &&
+        actualCompanyField < row.length &&
+        row[actualCompanyField]
+          ? row[actualCompanyField].trim()
           : "";
 
       // Build title based on available information
@@ -359,6 +379,62 @@ export default function Home() {
 
   const clearFilter = useCallback(() => {
     setFilterNumbers("");
+  }, []);
+
+  const handleFieldDragStart = useCallback(
+    (e: React.DragEvent, fieldIndex: number) => {
+      setDraggedFieldIndex(fieldIndex);
+      e.dataTransfer.effectAllowed = "move";
+    },
+    []
+  );
+
+  const handleFieldDragOver = useCallback(
+    (e: React.DragEvent, fieldIndex: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (draggedFieldIndex !== null && draggedFieldIndex !== fieldIndex) {
+        setDragOverFieldIndex(fieldIndex);
+      }
+    },
+    [draggedFieldIndex]
+  );
+
+  const handleFieldDragLeave = useCallback(() => {
+    setDragOverFieldIndex(null);
+  }, []);
+
+  const handleFieldDrop = useCallback(
+    (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+      setDragOverFieldIndex(null);
+
+      if (draggedFieldIndex !== null && draggedFieldIndex !== dropIndex) {
+        const newFieldOrder = [...fieldOrder];
+        const draggedIndex = newFieldOrder.indexOf(draggedFieldIndex);
+        const dropPosition = newFieldOrder.indexOf(dropIndex);
+
+        // Remove the dragged item
+        newFieldOrder.splice(draggedIndex, 1);
+
+        // Insert at the new position
+        if (draggedIndex < dropPosition) {
+          newFieldOrder.splice(dropPosition - 1, 0, draggedFieldIndex);
+        } else {
+          newFieldOrder.splice(dropPosition, 0, draggedFieldIndex);
+        }
+
+        setFieldOrder(newFieldOrder);
+      }
+
+      setDraggedFieldIndex(null);
+    },
+    [draggedFieldIndex, fieldOrder]
+  );
+
+  const handleFieldDragEnd = useCallback(() => {
+    setDraggedFieldIndex(null);
+    setDragOverFieldIndex(null);
   }, []);
 
   useEffect(() => {
@@ -598,37 +674,61 @@ export default function Home() {
                       style={{ maxHeight: "400px" }}
                     >
                       <div className="overflow-y-auto flex-1 space-y-1">
-                        {fieldTitles.map((field) => (
-                          <label
-                            key={field}
-                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 p-2 border-2 border-transparent hover:border-cyan-400 transition-all text-xs"
-                          >
-                            <div className="relative flex-shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={selectedFields.has(field)}
-                                onChange={() => toggleField(field)}
-                                className="w-4 h-4 opacity-0 absolute"
-                              />
-                              <div
-                                className={`w-4 h-4 border-2 flex items-center justify-center transition-all ${
-                                  selectedFields.has(field)
-                                    ? "bg-green-400 border-green-400"
-                                    : "bg-slate-700 border-slate-500"
-                                }`}
-                              >
-                                {selectedFields.has(field) && (
-                                  <span className="text-slate-900 text-xs font-bold">
-                                    ✓
-                                  </span>
-                                )}
+                        {fieldOrder.map((fieldIndex) => {
+                          const field = fieldTitles[fieldIndex];
+                          return (
+                            <label
+                              key={field}
+                              className={`flex items-center gap-2 cursor-pointer hover:bg-slate-700 p-2 border-2 transition-all text-xs ${
+                                dragOverFieldIndex === fieldIndex
+                                  ? "border-cyan-400 bg-slate-700"
+                                  : "border-transparent hover:border-cyan-400"
+                              } ${
+                                draggedFieldIndex === fieldIndex
+                                  ? "opacity-50"
+                                  : ""
+                              }`}
+                              draggable
+                              onDragStart={(e) =>
+                                handleFieldDragStart(e, fieldIndex)
+                              }
+                              onDragOver={(e) =>
+                                handleFieldDragOver(e, fieldIndex)
+                              }
+                              onDragLeave={handleFieldDragLeave}
+                              onDrop={(e) => handleFieldDrop(e, fieldIndex)}
+                              onDragEnd={handleFieldDragEnd}
+                            >
+                              <div className="w-5 h-4 flex items-center justify-center text-slate-400 hover:text-cyan-300 cursor-grab active:cursor-grabbing select-none text-sm leading-none">
+                                ⋮⋮
                               </div>
-                            </div>
-                            <span className="text-cyan-400 tracking-wide truncate">
-                              {field}
-                            </span>
-                          </label>
-                        ))}
+                              <div className="relative flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedFields.has(field)}
+                                  onChange={() => toggleField(field)}
+                                  className="w-4 h-4 opacity-0 absolute"
+                                />
+                                <div
+                                  className={`w-4 h-4 border-2 flex items-center justify-center transition-all ${
+                                    selectedFields.has(field)
+                                      ? "bg-green-400 border-green-400"
+                                      : "bg-slate-700 border-slate-500"
+                                  }`}
+                                >
+                                  {selectedFields.has(field) && (
+                                    <span className="text-slate-900 text-xs font-bold">
+                                      ✓
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-cyan-400 tracking-wide truncate">
+                                {field}
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                       <div className="mt-2 pt-2 border-t-2 border-slate-600 text-center space-y-2">
                         <div className="text-green-400 text-xs tracking-widest">
