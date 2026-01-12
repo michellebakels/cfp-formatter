@@ -16,6 +16,7 @@ export default function Home() {
     null
   );
   const [filterNumbers, setFilterNumbers] = useState<string>("");
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const currentFileRef = useRef<File | null>(null);
 
@@ -108,19 +109,38 @@ export default function Home() {
     return div.innerHTML;
   };
 
-  const getFilteredCount = (): number => {
-    if (!filterNumbers.trim()) {
-      return csvData.length;
+  const getFilteredData = (): Array<[number, string[]]> => {
+    let filteredData: Array<[number, string[]]> = csvData.map(
+      (row, index) => [index + 1, row] as [number, string[]]
+    );
+
+    // Apply number filter if present
+    if (filterNumbers.trim()) {
+      const filterSet = new Set<number>();
+      const numbers = filterNumbers
+        .split(/[,\n\r]+/)
+        .map((n) => parseInt(n.trim()))
+        .filter((n) => !isNaN(n) && n > 0 && n <= csvData.length);
+
+      numbers.forEach((n) => filterSet.add(n));
+      filteredData = filteredData.filter(([originalIndex]) =>
+        filterSet.has(originalIndex)
+      );
     }
 
-    const filterSet = new Set<number>();
-    const numbers = filterNumbers
-      .split(/[,\n\r]+/)
-      .map((n) => parseInt(n.trim()))
-      .filter((n) => !isNaN(n) && n > 0 && n <= csvData.length);
+    // Apply keyword search if present
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase().trim();
+      filteredData = filteredData.filter(([, row]) => {
+        return row.some((cell) => cell.toLowerCase().includes(keyword));
+      });
+    }
 
-    numbers.forEach((n) => filterSet.add(n));
-    return filterSet.size;
+    return filteredData;
+  };
+
+  const getFilteredCount = (): number => {
+    return getFilteredData().length;
   };
 
   const generatePrintSet = () => {
@@ -128,28 +148,8 @@ export default function Home() {
       selectedFields.has(fieldTitles[index])
     );
 
-    // Parse filter numbers with consistent validation
-    const filterSet = new Set<number>();
-    if (filterNumbers.trim()) {
-      const numbers = filterNumbers
-        .split(/[,\n\r]+/)
-        .map((n) => parseInt(n.trim()))
-        .filter((n) => !isNaN(n) && n > 0 && n <= csvData.length);
-      numbers.forEach((n) => filterSet.add(n));
-    }
-
-    // Filter data based on numbers, preserving original indices
-    // Create array of [originalIndex, row] tuples to track original positions
-    let filteredDataWithIndices: Array<[number, string[]]> = [];
-    if (filterSet.size > 0) {
-      filteredDataWithIndices = csvData
-        .map((row, index) => [index + 1, row] as [number, string[]])
-        .filter(([originalIndex]) => filterSet.has(originalIndex));
-    } else {
-      filteredDataWithIndices = csvData.map(
-        (row, index) => [index + 1, row] as [number, string[]]
-      );
-    }
+    // Get filtered data combining both number filters and keyword search
+    const filteredDataWithIndices = getFilteredData();
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -379,6 +379,7 @@ export default function Home() {
 
   const clearFilter = useCallback(() => {
     setFilterNumbers("");
+    setSearchKeyword("");
   }, []);
 
   const handleFieldDragStart = useCallback(
@@ -508,7 +509,7 @@ export default function Home() {
             FORM FORMATTER
           </h1>
           <div className="text-xs text-green-400 tracking-widest">
-            &gt; CSV PROCESSING UTILITY
+            &gt; CSV PROCESSING UTILITY WITH SEARCH
           </div>
         </div>
 
@@ -763,26 +764,46 @@ export default function Home() {
                     {/* Filter */}
                     <div
                       className="bg-slate-800 border-4 border-slate-600 p-4 flex-1"
-                      style={{ maxHeight: "300px" }}
+                      style={{ maxHeight: "400px" }}
                     >
-                      <div className="flex flex-col h-full">
-                        <h4 className="text-green-400 font-bold text-xs tracking-widest mb-2">
-                          FILTER APPS:
-                        </h4>
-                        <textarea
-                          value={filterNumbers}
-                          onChange={(e) => setFilterNumbers(e.target.value)}
-                          placeholder="ENTER NUMBERS&#10;2,3,4,5,6"
-                          className="w-full h-48 px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide resize-none"
-                        />
-                        <div className="mt-2 text-center space-y-2">
-                          <div className="text-xs text-cyan-400 tracking-widest opacity-75">
-                            LEAVE EMPTY FOR ALL
+                      <div className="flex flex-col h-full space-y-4">
+                        {/* Keyword Search */}
+                        <div>
+                          <h4 className="text-green-400 font-bold text-xs tracking-widest mb-2">
+                            SEARCH KEYWORD:
+                          </h4>
+                          <input
+                            type="text"
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            placeholder="Search all fields..."
+                            className="w-full px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide"
+                          />
+                          <div className="mt-1 text-xs text-cyan-400 tracking-widest opacity-75">
+                            SEARCHES ALL FIELDS
                           </div>
-                          <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
-                            <span className="text-purple-300">⌨️</span>{" "}
-                            <span className="font-bold">Esc</span> <br />
-                            <span className="text-cyan-400">Clear Filter</span>
+                        </div>
+
+                        {/* Number Filter */}
+                        <div className="flex-1">
+                          <h4 className="text-green-400 font-bold text-xs tracking-widest mb-2">
+                            ROW NUMBER(S):
+                          </h4>
+                          <textarea
+                            value={filterNumbers}
+                            onChange={(e) => setFilterNumbers(e.target.value)}
+                            placeholder="ENTER NUMBERS&#10;2,3,4,5,6"
+                            className="w-full h-32 px-3 py-2 bg-slate-700 border-2 border-slate-600 text-cyan-400 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors text-xs tracking-wide resize-none"
+                          />
+                          <div className="mt-2 text-center space-y-2">
+                            <div className="text-xs text-cyan-400 tracking-widest opacity-75">
+                              LEAVE EMPTY FOR ALL
+                            </div>
+                            <div className="px-2 py-1 text-purple-400 text-xs tracking-wide">
+                              <span className="text-purple-300">⌨️</span>{" "}
+                              <span className="font-bold">Esc</span> <br />
+                              <span className="text-cyan-400">Clear All</span>
+                            </div>
                           </div>
                         </div>
                       </div>
