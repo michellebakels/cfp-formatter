@@ -243,6 +243,7 @@ export default function Home() {
         const title = fieldTitles[index];
         return (
           title.toLowerCase().includes("name") ||
+          title.toLowerCase().includes("full name") ||
           title.toLowerCase().includes("applicant")
         );
       });
@@ -275,7 +276,7 @@ export default function Home() {
       // Build title based on available information
       let title = "";
       if (nameValue && companyValue) {
-        title = `${nameValue} - ${companyValue}`;
+        title = `${nameValue} - ${companyValue} - ${rowIndex}`;
       } else if (nameValue) {
         title = nameValue;
       } else {
