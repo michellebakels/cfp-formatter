@@ -239,26 +239,41 @@ export default function Home() {
 
     filteredDataWithIndices.forEach(([rowIndex, row]) => {
       // Find name and company fields (case-insensitive)
-      const nameField = fieldOrder.findIndex((index) => {
-        const title = fieldTitles[index];
-        return (
-          title.toLowerCase().includes("name") ||
-          title.toLowerCase().includes("full name") ||
-          title.toLowerCase().includes("applicant")
-        );
+      // First try to find "full name" specifically, then fall back to other name fields
+      let nameField = fieldTitles.findIndex((title) => {
+        return title.toLowerCase().includes("full name");
       });
-      const companyField = fieldOrder.findIndex((index) => {
-        const title = fieldTitles[index];
+      // If no "full name", try "first name" or "last name"
+      if (nameField === -1) {
+        nameField = fieldTitles.findIndex((title) => {
+          const titleLower = title.toLowerCase();
+          return titleLower.includes("first name") || titleLower.includes("last name");
+        });
+      }
+      // If still no match, try generic "name" but exclude "username"
+      if (nameField === -1) {
+        nameField = fieldTitles.findIndex((title) => {
+          const titleLower = title.toLowerCase();
+          return titleLower.includes("name") && !titleLower.includes("user");
+        });
+      }
+      // Last resort: try "applicant"
+      if (nameField === -1) {
+        nameField = fieldTitles.findIndex((title) => {
+          return title.toLowerCase().includes("applicant");
+        });
+      }
+      
+      const companyField = fieldTitles.findIndex((title) => {
         return (
           title.toLowerCase().includes("company") ||
           title.toLowerCase().includes("organization")
         );
       });
 
-      // Safely get values, checking if index exists in row array
-      const actualNameField = nameField !== -1 ? fieldOrder[nameField] : -1;
-      const actualCompanyField =
-        companyField !== -1 ? fieldOrder[companyField] : -1;
+      // Use the found indices directly
+      const actualNameField = nameField;
+      const actualCompanyField = companyField;
 
       const nameValue =
         actualNameField !== -1 &&
@@ -278,7 +293,7 @@ export default function Home() {
       if (nameValue && companyValue) {
         title = `${nameValue} - ${companyValue} - ${rowIndex}`;
       } else if (nameValue) {
-        title = nameValue;
+        title = `${nameValue} - ${rowIndex}`;
       } else {
         title = `Application ${rowIndex}`;
       }
